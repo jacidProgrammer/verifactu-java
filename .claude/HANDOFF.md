@@ -1,7 +1,7 @@
 # HANDOFF — verifactu-java (sesión C cerrada 2026-10-10)
 
 ## Tarea
-Contrato en `.claude/TASK.md`: los 8 criterios están implementados. Sesión A = F1+F2, B = F3+F4, C = F5 (starter) + F6 (README, pom de Central). Queda: commits (el repo sigue sin ninguno) y, si el dueño quiere, publicar.
+Contrato en `.claude/TASK.md`: los 8 criterios están implementados. Sesión A = F1+F2, B = F3+F4, C = F5 (starter) + F6 (README, pom de Central). Commits hechos y repo público en https://github.com/jacidProgrammer/verifactu-java (2026-10-10, CI verde 94/94). Queda solo publicar en Central si el dueño quiere.
 
 ## Hecho / verificado (sesión C)
 - `./mvnw -q clean verify`: Tests run 94, Failures 0, Errors 0, Skipped 0 (core 84, starter 10).
