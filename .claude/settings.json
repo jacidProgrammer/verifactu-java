@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./mvnw verify:*)",
+      "Bash(./mvnw test:*)",
+      "Bash(./mvnw -q verify:*)",
+      "Bash(./mvnw -q test:*)",
+      "Bash(./mvnw -q -DskipTests package)",
+      "Bash(./mvnw -q -pl verifactu-core test:*)",
+      "Bash(./mvnw -q -pl verifactu-spring-boot-starter test:*)",
+      "Bash(./mvnw -q -DskipTests package -Prelease:*)"
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+# Builds both modules and runs the whole test suite on every push and pull request.
+# The README badge points at this workflow.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build and test
+        run: ./mvnw -B -ntp verify
+
+      - name: Test summary
+        if: always()
+        run: |
+          cat */target/surefire-reports/*.txt | grep 'Tests run:' \
+            | awk -F'[:,]' '{t+=$2;f+=$4;e+=$6;s+=$8} END{printf "Tests run: %d, Failures: %d, Errors: %d, Skipped: %d\n",t,f,e,s}'
