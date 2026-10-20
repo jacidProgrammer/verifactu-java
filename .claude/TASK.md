@@ -1,40 +1,33 @@
-# TASK — verifactu-java v0.1
+# TASK — validar verifactu-java (2026-10-10)
+
+El contrato anterior (v0.1, 8 criterios) está cerrado y publicado; queda en el historial de git.
 
 ## Objetivo
-Una librería Java 21 sin frameworks que genere registros de facturación Verifactu (alta y anulación) con huella encadenada, QR de cotejo y XML conforme a los esquemas de la AEAT, verificable contra los vectores oficiales, publicable en Maven Central.
+Demostrar con evidencia independiente de los propios tests que la librería hace lo que promete el README y que el starter funciona dentro de una aplicación Spring Boot 4.1 real.
 
 ## Terminado significa
-1. `./mvnw -q verify` verde; cifra `Tests run: N, Failures: 0, Errors: 0, Skipped: 0` en el cierre (N ≥ 40).
-2. Los 3 vectores oficiales de huella (PDF huella v0.1.2, pág. 10-12) pasan como tests: alta 1 → 3C464DAF…, alta 2 encadenada → F7B94CFD…, anulación → 177547C0…. Cualquier cambio en el separador, orden o codificación los pone en rojo (mutación enseñada una vez).
-3. La URL del QR coincide byte a byte con el ejemplo del PDF QR v0.5.0 (`nif=89890001K&numserie=12345678%26G33&fecha=01-01-2024&importe=241.4`, serie `12345678&G33` codificada), para producción y pruebas; el PNG generado se decodifica con ZXing y devuelve esa URL; nivel M.
-4. El XML `RegFactuSistemaFacturacion` generado valida contra `SuministroLR.xsd` / `SuministroInformacion.xsd` v1.0 descargados al repo (test con javax.xml.validation).
-5. Una cadena de registros se puede construir offline: `RecordChain` acepta altas y anulaciones, mantiene `PrimerRegistro`, la huella anterior y `FechaHoraHusoGenRegistro`, y rechaza encadenar fuera de orden.
-6. Cliente SOAP `AeatClient` (JDK HttpClient + mTLS desde un `KeyStore` PKCS12 del usuario) construye `RegFactuSistemaFacturacion` desde el WSDL v1.0, parsea `EstadoEnvio`/`EstadoRegistro`/`TiempoEsperaEnvio`/`RegistroDuplicado` y respeta el límite de 1.000 registros por envío. Probado contra un stub SOAP local (`com.sun.net.httpserver`) con respuestas Correcto, ParcialmenteCorrecto e Incorrecto tomadas del PDF SWeb; test que falla si se envían 1.001.
-7. Starter `verifactu-spring-boot-starter` (Boot 4.1): autoconfigura `RecordChain` y `AeatClient` desde propiedades `verifactu.*` (nif, entorno pruebas/producción, ruta y clave del keystore); `ApplicationContextRunner` demuestra que sin `verifactu.enabled=true` no se crea ningún bean y con él se crean los dos.
-8. README en inglés con ejemplo de 15 líneas que compila (test que lo ejecuta), fechas correctas de obligatoriedad y aviso "not yet exercised against the AEAT test environment".
+1. **Huella**: un script Python (`-I`, en scratchpad) recompone la cadena de entrada de los 3 vectores oficiales según el PDF huella v0.1.2 y obtiene 3C464DAF…, F7B94CFD… y 177547C0… sin usar código Java; además una mutación en `HashInput` (cambiar el separador `&`) pone en rojo `OfficialHashVectorsTest` y se restaura.
+2. **QR**: la URL que genera `VerificationUrl` para el ejemplo oficial se compara byte a byte con la del PDF QR v0.5.0 (texto en `verifactu-pdf/qr.txt`, no con la constante del test); el PNG se decodifica con una herramienta externa (`zbarimg` si está, si no ZXing desde un `main` nuevo) y devuelve esa URL.
+3. **XML**: el `RegFactuSistemaFacturacion` de `ReadmeExample` se valida con `xmllint --schema` contra `SuministroLR.xsd` descargado de nuevo desde la AEAT (sha256 igual al del repo o se reporta la diferencia).
+4. **SOAP**: `curl` manual contra `SoapStub` no es posible (es test); en su lugar el punto 5 cubre el envío.
+5. **Integración real**: una app Spring Boot 4.1 mínima que depende del starter vía `~/.m2` (`./mvnw install`), con un PKCS12 autofirmado generado con `keytool`, arranca con `verifactu.enabled=true`, registra una factura por un endpoint REST, devuelve el QR (PNG) y el XML, y envía el registro a un stub SOAP local levantado en la propia app: respuesta `Correcto` con CSV. Se prueba con `curl` y se guarda la salida.
+6. Mutación de integración: con `verifactu.enabled` ausente, el mismo endpoint responde 500 por falta de bean (demuestra que el starter es el que aporta los beans).
+7. `./mvnw -q verify` del repo sigue en 94/94 al terminar; el repo queda sin cambios de código salvo lo decidido en D1.
 
 ## Fuera de alcance / no tocar
-- Reintentos automáticos, cola persistente y scheduler de `TiempoEsperaEnvio`: la librería expone el valor, quien integra decide cuándo reenviar.
-- Firma XAdES del registro (modalidad no-Verifactu): fuera; la especificación de firma ni se ha leído.
-- Registros de evento (`RegistroEvento`), consulta (`ConsultaLR`), subsanación, facturas rectificativas con desglose completo de regímenes: solo los campos obligatorios de alta/anulación; el resto se modela como "no soportado" explícito, no se finge.
-- Publicación en Maven Central: pom preparado (sources, javadoc, licencia, scm) pero sin firmar ni publicar.
-- Ninguna dependencia nueva fuera de: ZXing (QR), JAXB runtime (XML), JUnit 5, AssertJ; en el starter, `spring-boot-starter` y `spring-boot-test` 4.1. Sin Apache CXF ni Spring WS: SOAP a mano sobre JAXB.
+- Envío real a `prewww1.aeat.es` / entorno de pruebas (sin certificado del contribuyente).
+- Firma XAdES, `S2`, `IDOtro`, rectificativas, eventos, ConsultaLR (D14 del v0.1).
+- Publicar en Maven Central, cambiar versiones, tocar `fiverr-gigs.md`.
+- Corregir defectos que aparezcan: se reportan con file:line, no se arreglan en esta sesión.
 
-## Decisiones del usuario (cerradas 2026-10-10)
-- D1 Alcance v0.1: B, incluye el cliente SOAP. No se ejecutará contra la AEAT sin tu certificado.
-- D2 Starter Spring Boot: B, incluido.
-- D3 Importes: A, `BigDecimal` escala 2 con formateadores por destino.
+## Decisiones del usuario
+- D1 Dónde vive la app de integración: A) módulo `verifactu-sample` en el repo, como `ratelimit-sample` en tu starter público (queda como prueba visible, +1 módulo, CI lo compila). B) carpeta en scratchpad, se borra al terminar (solo evidencia en el informe).
+- D2 Sondear el endpoint real de la AEAT con el cert autofirmado: A) sí, un solo `curl` esperando rechazo TLS/HTTP (prueba de que la URL existe y responde; no envía datos válidos). B) no tocar la AEAT.
 
 ## Plan y presupuesto
-Sesión A (esta): F1 dominio, formateadores, `HashChain` y vectores oficiales (~12 llamadas) · F2 QR con ZXing (~8) · commit por fase.
-Sesión B (/handoff): F3 XSD v1.0 al repo, JAXB y validación (subagente para el mapeo de campos, ~15) · F4 `AeatClient` + stub SOAP (~15) · commit.
-Sesión C: F5 starter Boot 4.1 (~15) · F6 README, pom de Central, /verify final (~8).
-Total ≈75 llamadas, ≈170K de contexto repartido en tres sesiones; cada una cierra con /verify y /handoff.
+- F1 (hilo principal, ~8 llamadas): huella en Python, mutación, QR vs PDF, decodificar PNG, xmllint.
+- F2 (subagente con brief cerrado, ~20 llamadas): app Boot + stub + keytool + curl; devuelve ≤20 líneas y guarda salida en `docs/validacion-2026-10-10.md` (D1-A) o scratchpad (D1-B).
+- F3 (hilo principal, ~5): verify final, informe /verify. Total ≈35 llamadas, <100K contexto.
 
 ## Verificación prevista
-- Se entrega: salida de `./mvnw verify` con cifras, los 3 vectores en verde y uno en rojo tras mutar el separador, URL del QR comparada con el PDF, XML validado contra XSD.
-- Se entrega además: respuesta parseada del stub SOAP para los 3 estados, test rojo con 1.001 registros, `ApplicationContextRunner` con y sin `verifactu.enabled`.
-- NO se verifica: envío real al entorno de pruebas de la AEAT (necesita tu certificado; se deja un `main` de ejemplo documentado para que lo corras tú), cotejo del QR en `prewww2.aeat.es`, firma XAdES.
-
-## Fuentes
-docs/aeat-spec-notes.md (huella v0.1.2 27/08/2024, QR v0.5.0 10/12/2025, SWeb v1.0.3 28/07/2025, RD 1007/2023 consolidado).
+Evidencia: salidas literales de python, xmllint, zbarimg/ZXing, curl y `Tests run`. NO verificado: AEAT real, Central, comportamiento con certificado FNMT de verdad.
